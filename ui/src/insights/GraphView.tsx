@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { EmptyState } from "../components";
 import { Icon } from "../components/Icon";
 import { InsightsArt } from "../sections/illustrations";
 import type { GraphEdge, GraphNode, NodeType } from "./graphApi";
 import { useGraph } from "./useGraph";
-import { useGraphLayout, VB_H, VB_W } from "./useGraphLayout";
+import { useGraphLayout } from "./useGraphLayout";
+import { useGraphZoom } from "./useGraphZoom";
 
 /**
  * GraphView — the Phase-14 knowledge-graph surface.
@@ -52,7 +53,38 @@ export function GraphView() {
     [graph.edges, dismissed],
   );
 
+  const [expanded, setExpanded] = useState(false);
   const { svgRef, positions, startDrag } = useGraphLayout(graph.nodes, visibleEdges);
+  const zoom = useGraphZoom(svgRef, expanded, loaded && graph.nodes.length > 0);
+
+  // Tapping a node frames it and its immediate neighbours — the "constellation
+  // focus" that turns the web into something you explore by touch.
+  const focusNode = useCallback(
+    (id: string) => {
+      const here = positions.get(id);
+      if (!here) return;
+      const pts = [{ x: here.x, y: here.y }];
+      for (const e of visibleEdges) {
+        const other =
+          e.source === id ? e.target : e.target === id ? e.source : null;
+        if (!other) continue;
+        const p = positions.get(other);
+        if (p) pts.push({ x: p.x, y: p.y });
+      }
+      zoom.focusOn(pts);
+    },
+    [positions, visibleEdges, zoom],
+  );
+
+  // Esc leaves the expanded view (and clears any selection along the way).
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpanded(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [expanded]);
 
   const selectedNode =
     selection?.kind === "node" ? nodeById.get(selection.id) ?? null : null;
@@ -103,16 +135,50 @@ export function GraphView() {
           description="As you write, Eva starts to see how your themes, people, and feelings connect. After a few weeks there's a web here to explore."
         />
       ) : (
-        <div className="graph">
+        <div className={"graph-stage" + (expanded ? " graph-stage--expanded" : "")}>
+          {expanded && (
+            <header className="graph-stage__bar">
+              <div>
+                <h3 className="graph-stage__title">Connections</h3>
+                <p className="graph-stage__sub">
+                  Tap a node to follow a thread; tap the space around it to step back.
+                </p>
+              </div>
+              <button
+                className="graph-stage__close"
+                onClick={() => setExpanded(false)}
+                aria-label="Close expanded graph"
+              >
+                <Icon name="shrink" size={16} /> Close
+              </button>
+            </header>
+          )}
+          <div className="graph">
           <div className="graph__canvas">
             <svg
               ref={svgRef}
               className="graph__svg"
-              viewBox={`0 0 ${VB_W} ${VB_H}`}
+              viewBox={`${zoom.vb.x} ${zoom.vb.y} ${zoom.vb.w} ${zoom.vb.h}`}
               role="img"
               aria-label="Knowledge graph of your themes, people and feelings"
-              onClick={() => setSelection(null)}
             >
+              {/* Backdrop: absorbs pan-drags and tap-to-deselect (a plain tap on
+                  empty space also eases the view back out). Oversized so it keeps
+                  filling the frame however far you pan. */}
+              <rect
+                className="graph__bg"
+                x={-5000}
+                y={-5000}
+                width={10000}
+                height={10000}
+                onPointerDown={zoom.beginPan}
+                onClick={() => {
+                  if (zoom.didPan()) return;
+                  setSelection(null);
+                  zoom.reset();
+                }}
+              />
+
               {/* Edges first so nodes sit on top. */}
               {visibleEdges.map((e) => {
                 const a = positions.get(e.source);
@@ -189,6 +255,7 @@ export function GraphView() {
                     onClick={(ev) => {
                       ev.stopPropagation();
                       setSelection({ kind: "node", id: n.id });
+                      focusNode(n.id);
                     }}
                   >
                     <circle className="graph__node-dot" r={r} />
@@ -199,6 +266,53 @@ export function GraphView() {
                 );
               })}
             </svg>
+
+            <div className="graph__toolbar">
+              <button
+                className="graph__tool"
+                onClick={() => setExpanded((v) => !v)}
+                aria-label={expanded ? "Close expanded graph" : "Expand graph"}
+                title={expanded ? "Close" : "Expand"}
+              >
+                <Icon name={expanded ? "shrink" : "expand"} size={16} />
+              </button>
+            </div>
+
+            <div className="graph__controls" role="group" aria-label="Zoom">
+              <button
+                className="graph__tool"
+                onClick={zoom.zoomIn}
+                aria-label="Zoom in"
+                title="Zoom in"
+              >
+                <Icon name="plus" size={16} />
+              </button>
+              <button
+                className="graph__tool"
+                onClick={zoom.zoomOut}
+                aria-label="Zoom out"
+                title="Zoom out"
+              >
+                <Icon name="minus" size={16} />
+              </button>
+              <button
+                className="graph__tool"
+                onClick={() => {
+                  setSelection(null);
+                  zoom.reset();
+                }}
+                disabled={!zoom.zoomed}
+                aria-label="Reset view"
+                title="Reset view"
+              >
+                <Icon name="crosshair" size={16} />
+              </button>
+            </div>
+
+            <p className="graph__hint">
+              Tap a node to focus · drag to pan ·{" "}
+              {expanded ? "scroll to zoom" : "⌘-scroll to zoom"}
+            </p>
 
             <Legend />
           </div>
@@ -216,6 +330,7 @@ export function GraphView() {
             }}
             onClear={() => setSelection(null)}
           />
+          </div>
         </div>
       )}
     </section>

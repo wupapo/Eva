@@ -31,7 +31,12 @@ export type IconName =
   | "speaker-off"
   | "stop"
   | "check"
-  | "close";
+  | "close"
+  | "plus"
+  | "minus"
+  | "expand"
+  | "shrink"
+  | "crosshair";
 
 type IconProps = {
   name: IconName;
@@ -153,6 +158,20 @@ const PATHS: Record<IconName, JSX.Element> = {
   stop: <rect x="6" y="6" width="12" height="12" rx="2.5" />,
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   close: <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />,
+  plus: <path d="M12 5.5v13M5.5 12h13" />,
+  minus: <path d="M5.5 12h13" />,
+  expand: (
+    <path d="M9 4.5H5.5a1 1 0 0 0-1 1V9M15 4.5h3.5a1 1 0 0 1 1 1V9M9 19.5H5.5a1 1 0 0 1-1-1V15M15 19.5h3.5a1 1 0 0 0 1-1V15" />
+  ),
+  shrink: (
+    <path d="M4.5 9H8a1 1 0 0 0 1-1V4.5M19.5 9H16a1 1 0 0 1-1-1V4.5M4.5 15H8a1 1 0 0 1 1 1v3.5M19.5 15H16a1 1 0 0 0-1 1v3.5" />
+  ),
+  crosshair: (
+    <>
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 3v3.2M12 17.8V21M3 12h3.2M17.8 12H21" />
+    </>
+  ),
 };
 
 export function Icon({ name, size = 20, className, label }: IconProps) {

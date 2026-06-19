@@ -259,17 +259,168 @@
 
 .graph__canvas {
   position: relative;
-  background: var(--surface-sunken);
+  /* A soft pool of light at the centre so the web reads as a constellation on a
+     calm field rather than dots on a flat panel. */
+  background:
+    radial-gradient(
+      120% 90% at 50% 42%,
+      color-mix(in srgb, var(--accent) 7%, var(--surface-sunken)) 0%,
+      var(--surface-sunken) 62%
+    );
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
-  min-height: 460px; /* a roomy surface so the web has space to breathe */
+  min-height: 520px; /* a roomy surface so the web has space to breathe */
 }
 .graph__svg {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  min-height: inherit;
   touch-action: none; /* let pointer-drag work without the page panning */
+  cursor: grab;
+}
+.graph__svg:active {
+  cursor: grabbing;
+}
+/* The pan/deselect backdrop is invisible but must still catch pointer events. */
+.graph__bg {
+  fill: transparent;
+}
+
+/* --- Floating canvas chrome: expand, zoom controls, hint ------------------- */
+.graph__toolbar {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+}
+.graph__controls {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.graph__tool {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  /* Sit legibly above the graph without hiding it. */
+  background: color-mix(in srgb, var(--surface-raised) 86%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.graph__tool:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.graph__tool:active:not(:disabled) {
+  transform: translateY(0);
+}
+.graph__tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.graph__hint {
+  position: absolute;
+  left: var(--space-3);
+  top: var(--space-3);
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--surface-raised) 78%, transparent);
+  backdrop-filter: blur(6px);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: calc(100% - 2 * var(--space-3));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Expand to a full-surface overlay -------------------------------------- */
+.graph-stage--expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(10px);
+  animation: graph-stage-in var(--dur-base) var(--ease-out) both;
+}
+@keyframes graph-stage-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.graph-stage__bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex: none;
+}
+.graph-stage__title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-normal);
+  color: var(--text);
+}
+.graph-stage__sub {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.graph-stage__close {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.graph-stage__close:hover {
+  border-color: var(--accent);
+}
+/* In the overlay the graph fills the screen: canvas grows, panel rides beside. */
+.graph-stage--expanded .graph {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+.graph-stage--expanded .graph__canvas {
+  height: 100%;
+  min-height: 0;
+}
+.graph-stage--expanded .graph__panel {
+  max-height: 100%;
+  overflow-y: auto;
+}
+@media (max-width: 880px) {
+  .graph-stage--expanded .graph {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Node category colours (light). */
@@ -392,7 +543,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-3);
-  max-width: calc(100% - var(--space-5));
+  /* Leave the bottom-right corner clear for the zoom controls. */
+  max-width: calc(100% - 64px);
   padding: var(--space-2) var(--space-3);
   background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
   border: 1px solid var(--border);
