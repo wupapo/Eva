@@ -163,6 +163,13 @@
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 70%, transparent);
   backdrop-filter: blur(8px);
+  /* The bar's backdrop-filter makes it its own stacking context; without an
+     explicit z-index it sits at the auto level, so the content column's
+     positioned children (chat toast/composer at z-index 30) would paint over
+     the persona dropdown. Lift the whole bar above the content so its menu
+     opens in the foreground, not behind the chat text. */
+  position: relative;
+  z-index: 50;
 }
 .topbar__left,
 .topbar__right {
