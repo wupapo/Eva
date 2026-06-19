@@ -408,19 +408,22 @@
   flex: 1;
   min-height: 0;
 }
+/* A borderless, paper-like writing surface: no box, no focus ring, no rounded
+   frame — just text on the page so the writer never feels boxed in or squeezed.
+   The cursor and the placeholder are the only chrome. */
 .jeditor__content {
   flex: 1;
   min-height: 240px;
   outline: none;
-  border-radius: var(--radius-sm);
-  transition: box-shadow var(--dur-fast) var(--ease-out);
   font-family: var(--font-display);
   font-size: var(--text-md);
   line-height: var(--leading-relaxed);
   color: var(--text);
 }
-.jeditor__content:focus {
-  box-shadow: 0 0 0 3px var(--accent-soft);
+.jeditor__content:focus,
+.jeditor__content:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 .jeditor__content > * + * {
   margin-top: var(--space-3);
